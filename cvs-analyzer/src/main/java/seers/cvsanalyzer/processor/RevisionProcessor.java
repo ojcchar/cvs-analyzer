@@ -156,11 +156,20 @@ public class RevisionProcessor implements ThreadProcessor {
 				throw e;
 			}
 
+			LOGGER.debug("Commits stored [" + projectName + "]");
+
+			int numCommits = 0;
+
 			// add the code files of each revision
 			for (int i = 0; i < commits.size(); i++) {
+				numCommits++;
+
 				CommitBean commit = commits.get(i);
 				Revision revision = revisions.get(i);
 				addCodeFiles(session, commit, revision);
+
+				LOGGER.debug("[" + projectName + "] " + numCommits + "/" + commits.size());
+
 			}
 		} finally {
 			session.close();
