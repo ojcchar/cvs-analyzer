@@ -13,7 +13,7 @@ import seers.irda.dao.GenericDao;
 /**
  * Process the Control Version information of a system
  */
-public class CSVProcessorApp {
+public class CVSProcessorApp {
 
 	public static void main(String[] args) throws Exception {
 
