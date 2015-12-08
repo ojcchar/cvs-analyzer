@@ -30,10 +30,10 @@ public class GitUtilities2Test extends TestCase {
 	// System.out.println(commitBean);
 	// }
 	// }
-
-	public void testCheckout() throws Exception {
-		String repositoryPath = "C:/cloning3";
-		GitUtilities2.checkout(repositoryPath, "537862f");
-	}
+	//
+	// public void testCheckout() throws Exception {
+	// String repositoryPath = "C:/cloning3";
+	// GitUtilities2.checkout(repositoryPath, "537862f");
+	// }
 
 }
