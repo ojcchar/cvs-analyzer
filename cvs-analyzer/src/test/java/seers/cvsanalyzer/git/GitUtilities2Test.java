@@ -1,8 +1,6 @@
 package seers.cvsanalyzer.git;
 
-import junit.framework.TestCase;
-
-public class GitUtilities2Test extends TestCase {
+public class GitUtilities2Test {
 
 	// public void testCloneGitRepository() throws Exception {
 	// String destinationFolder = "C:/cloning3";
