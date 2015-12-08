@@ -149,7 +149,7 @@ public class RevisionProcessor implements ThreadProcessor {
 					}
 					revisions.add(revision);
 
-					LOGGER.debug("[" + projectName + "] " + numCommits + "/" + commits.size());
+					LOGGER.debug("[" + projectName + "]: " + numCommits + "/" + commits.size());
 				}
 
 				tx.commit();
