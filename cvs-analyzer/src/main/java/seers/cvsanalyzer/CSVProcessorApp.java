@@ -11,18 +11,22 @@ import seers.cvsanalyzer.processor.RevisionProcessor;
 import seers.irda.dao.GenericDao;
 
 /**
- *
+ * Process the Control Version information of a system
  */
-public class App {
+public class CSVProcessorApp {
 
 	public static void main(String[] args) throws Exception {
 
+		// urls of the repositories (git)
 		String[] repositoryAddresses = args[0].split(",");
+		// project names
 		String[] projectNames = args[1].split(",");
+		// folder where the projects are gonna be cloned
 		String destinationFolder = args[2];
 
 		try {
 
+			// threads creation
 			List<ThreadProcessor> procs = new ArrayList<>();
 			for (int i = 0; i < repositoryAddresses.length; i++) {
 
@@ -37,11 +41,14 @@ public class App {
 			ThreadCommandExecutor executor = new ThreadCommandExecutor();
 			executor.setCorePoolSize(4);
 			try {
+
 				// run the threads
 				CountDownLatch cntDwnLatch = new CountDownLatch(procs.size());
 				for (ThreadProcessor proc : procs) {
 					executor.exeucuteCommRunnable(new CommandLatchRunnable(proc, cntDwnLatch));
 				}
+
+				// wait for the thread to finish
 				cntDwnLatch.await();
 			} finally {
 				executor.shutdown();

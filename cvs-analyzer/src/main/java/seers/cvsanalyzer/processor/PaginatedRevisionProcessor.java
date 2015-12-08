@@ -25,7 +25,14 @@ import seers.irda.entity.CodeFile;
 import seers.irda.entity.Revision;
 import seers.irda.entity.SoftwareSystem;
 
+/**
+ * From the CVS data, it stores the revisions, files and change sets in the DB
+ * 
+ * @author ojcch
+ *
+ */
 class PaginatedRevisionProcessor implements ThreadProcessor {
+
 	private String name;
 	List<CommitBean> commits;
 	private SoftwareSystem system;
@@ -54,6 +61,7 @@ class PaginatedRevisionProcessor implements ThreadProcessor {
 
 				RevisionDao revDao = new RevisionDao(session);
 
+				// process every commit
 				for (CommitBean commit : commits) {
 
 					Revision revision = revDao.getRevision(commit.getCommitId(), system);
@@ -86,6 +94,7 @@ class PaginatedRevisionProcessor implements ThreadProcessor {
 				throw e;
 			}
 
+			// add the code files of each revision
 			for (int i = 0; i < commits.size(); i++) {
 				CommitBean commit = commits.get(i);
 				Revision revision = revisions.get(i);
@@ -99,12 +108,15 @@ class PaginatedRevisionProcessor implements ThreadProcessor {
 
 	private void addCodeFiles(Session session, CommitBean commit, Revision revision) {
 
+		// set of files to save
 		Set<String> allFiles = new HashSet<>(commit.getAddedFiles());
 		allFiles.addAll(commit.getModifiedFiles());
 		allFiles.addAll(commit.getDeletedFiles());
 
+		// save the code files
 		Map<String, Integer> fileMap = saveCodeFiles(session, allFiles);
 
+		// save the change sets, added, modified and deleted
 		saveChangeSets(session, revision, commit.getAddedFiles(), "A", fileMap);
 		saveChangeSets(session, revision, commit.getModifiedFiles(), "M", fileMap);
 		saveChangeSets(session, revision, commit.getDeletedFiles(), "D", fileMap);
@@ -119,6 +131,7 @@ class PaginatedRevisionProcessor implements ThreadProcessor {
 			Map<String, Integer> fileMap = new HashMap<>();
 			CodeFileDao dao = new CodeFileDao(session);
 
+			// every file is saved
 			for (String path : allFiles) {
 
 				CodeFile codeFile = dao.getCodeFile(path, system);
@@ -154,6 +167,7 @@ class PaginatedRevisionProcessor implements ThreadProcessor {
 			tx = session.beginTransaction();
 			ChangeSetDao csDao = new ChangeSetDao(session);
 
+			// every change set is saved
 			for (String path : files) {
 
 				// -------------------------------
