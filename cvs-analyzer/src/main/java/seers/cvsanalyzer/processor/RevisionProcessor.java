@@ -116,6 +116,8 @@ public class RevisionProcessor implements ThreadProcessor {
 
 		try {
 
+			int numCommits = 0;
+
 			Transaction tx = null;
 			List<Revision> revisions = new ArrayList<>();
 			try {
@@ -125,6 +127,7 @@ public class RevisionProcessor implements ThreadProcessor {
 
 				// process every commit
 				for (CommitBean commit : commits) {
+					numCommits++;
 
 					Revision revision = revDao.getRevision(commit.getCommitId(), system);
 					boolean persist = false;
@@ -146,6 +149,7 @@ public class RevisionProcessor implements ThreadProcessor {
 					}
 					revisions.add(revision);
 
+					LOGGER.debug("[" + projectName + "] " + numCommits + "/" + commits.size());
 				}
 
 				tx.commit();
@@ -158,7 +162,7 @@ public class RevisionProcessor implements ThreadProcessor {
 
 			LOGGER.debug("Commits stored [" + projectName + "]");
 
-			int numCommits = 0;
+			numCommits = 0;
 
 			// add the code files of each revision
 			for (int i = 0; i < commits.size(); i++) {
