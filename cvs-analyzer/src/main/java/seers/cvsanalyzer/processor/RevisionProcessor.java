@@ -114,73 +114,75 @@ public class RevisionProcessor implements ThreadProcessor {
 
 		Session session = GenericDao.openSession();
 
+		int numCommits = 0;
+
+		Transaction tx = null;
+		List<Revision> revisions = new ArrayList<>();
 		try {
+			tx = session.beginTransaction();
 
-			int numCommits = 0;
+			RevisionDao revDao = new RevisionDao(session);
 
-			Transaction tx = null;
-			List<Revision> revisions = new ArrayList<>();
-			try {
-				tx = session.beginTransaction();
-
-				RevisionDao revDao = new RevisionDao(session);
-
-				// process every commit
-				for (CommitBean commit : commits) {
-					numCommits++;
-
-					Revision revision = revDao.getRevision(commit.getCommitId(), system);
-					boolean persist = false;
-					if (revision == null) {
-						revision = new Revision();
-						persist = true;
-					}
-
-					revision.setSoftwareSystem(system);
-					revision.setCommitId(commit.getCommitId());
-					revision.setMessage(commit.getCommitMessage());
-					revision.setAuthor(commit.getAuthorEmail());
-					revision.setDate(commit.getDate());
-
-					if (persist) {
-						revDao.persist(revision);
-					} else {
-						revDao.update(revision);
-					}
-					revisions.add(revision);
-
-					LOGGER.debug("[" + projectName + "]: " + numCommits + "/" + commits.size());
-				}
-
-				tx.commit();
-			} catch (Exception e) {
-				if (tx != null) {
-					tx.rollback();
-				}
-				throw e;
-			}
-
-			LOGGER.debug("Commits stored [" + projectName + "]");
-
-			numCommits = 0;
-
-			// add the code files of each revision
-			for (int i = 0; i < commits.size(); i++) {
+			// process every commit
+			for (CommitBean commit : commits) {
 				numCommits++;
 
-				CommitBean commit = commits.get(i);
-				Revision revision = revisions.get(i);
-				addCodeFiles(session, commit, revision);
+				Revision revision = revDao.getRevision(commit.getCommitId(), system);
+				boolean persist = false;
+				if (revision == null) {
+					revision = new Revision();
+					persist = true;
+				}
 
-				LOGGER.debug("[" + projectName + "] " + numCommits + "/" + commits.size());
+				revision.setSoftwareSystem(system);
+				revision.setCommitId(commit.getCommitId());
+				revision.setMessage(commit.getCommitMessage());
+				revision.setAuthor(commit.getAuthorEmail());
+				revision.setDate(commit.getDate());
 
+				if (persist) {
+					revDao.persist(revision);
+				} else {
+					revDao.update(revision);
+				}
+				revisions.add(revision);
+
+				if (numCommits % 100 == 0) {
+					LOGGER.debug("[" + projectName + "]: " + numCommits + "/" + commits.size());
+				}
 			}
+			LOGGER.debug("[" + projectName + "]: " + numCommits + "/" + commits.size());
+
+			tx.commit();
+		} catch (Exception e) {
+			if (tx != null) {
+				tx.rollback();
+			}
+			throw e;
 		} finally {
 			session.close();
 		}
+
+		LOGGER.debug("Commits stored [" + projectName + "]");
+
+		numCommits = 0;
+
+		// add the code files of each revision
+		for (int i = 0; i < commits.size(); i++) {
+			numCommits++;
+
+			CommitBean commit = commits.get(i);
+			Revision revision = revisions.get(i);
+			addCodeFiles(commit, revision);
+
+			if (numCommits % 100 == 0) {
+				LOGGER.debug("[" + projectName + "] " + numCommits + "/" + commits.size());
+			}
+		}
+		LOGGER.debug("[" + projectName + "] " + numCommits + "/" + commits.size());
 	}
 
-	private void addCodeFiles(Session session, CommitBean commit, Revision revision) {
+	private void addCodeFiles(CommitBean commit, Revision revision) {
 
 		// set of files to save
 		Set<String> allFiles = new HashSet<>(commit.getAddedFiles());
@@ -188,16 +190,17 @@ public class RevisionProcessor implements ThreadProcessor {
 		allFiles.addAll(commit.getDeletedFiles());
 
 		// save the code files
-		Map<String, Integer> fileMap = saveCodeFiles(session, allFiles);
+		Map<String, Integer> fileMap = saveCodeFiles(allFiles);
 
 		// save the change sets, added, modified and deleted
-		saveChangeSets(session, revision, commit.getAddedFiles(), "A", fileMap);
-		saveChangeSets(session, revision, commit.getModifiedFiles(), "M", fileMap);
-		saveChangeSets(session, revision, commit.getDeletedFiles(), "D", fileMap);
+		saveChangeSets(revision, commit.getAddedFiles(), "A", fileMap);
+		saveChangeSets(revision, commit.getModifiedFiles(), "M", fileMap);
+		saveChangeSets(revision, commit.getDeletedFiles(), "D", fileMap);
 	}
 
-	private Map<String, Integer> saveCodeFiles(Session session, Set<String> allFiles) {
+	private Map<String, Integer> saveCodeFiles(Set<String> allFiles) {
 
+		Session session = GenericDao.openSession();
 		Transaction tx = null;
 		try {
 			tx = session.beginTransaction();
@@ -230,12 +233,15 @@ public class RevisionProcessor implements ThreadProcessor {
 				tx.rollback();
 			}
 			throw e;
+		} finally {
+			session.close();
 		}
 	}
 
-	private void saveChangeSets(Session session, Revision revision, Vector<String> files, String changeType,
+	private void saveChangeSets(Revision revision, Vector<String> files, String changeType,
 			Map<String, Integer> fileMap) {
 
+		Session session = GenericDao.openSession();
 		Transaction tx = null;
 		try {
 			tx = session.beginTransaction();
@@ -264,6 +270,8 @@ public class RevisionProcessor implements ThreadProcessor {
 				tx.rollback();
 			}
 			throw e;
+		} finally {
+			session.close();
 		}
 	}
 
