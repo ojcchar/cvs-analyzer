@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.io.FilenameUtils;
 import org.hibernate.Session;
@@ -15,6 +16,8 @@ import org.hibernate.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import seers.appcore.threads.CommandLatchRunnable;
+import seers.appcore.threads.ThreadCommandExecutor;
 import seers.appcore.threads.processor.ThreadException;
 import seers.appcore.threads.processor.ThreadProcessor;
 import seers.appcore.utils.ExceptionUtils;
@@ -23,7 +26,6 @@ import seers.cvsanalyzer.git.GitUtilities2;
 import seers.irda.dao.GenericDao;
 import seers.irda.dao.impl.ChangeSetDao;
 import seers.irda.dao.impl.CodeFileDao;
-import seers.irda.dao.impl.RevisionDao;
 import seers.irda.dao.impl.SoftwareSystemDao;
 import seers.irda.entity.ChangeSet;
 import seers.irda.entity.ChangeSetId;
@@ -109,63 +111,14 @@ public class RevisionProcessor implements ThreadProcessor {
 	 * DB
 	 * 
 	 * @param commits
+	 * @throws InterruptedException
 	 */
-	private void processCommits(Vector<CommitBean> commits) {
+	private void processCommits(Vector<CommitBean> commits) throws InterruptedException {
 
-		Session session = GenericDao.openSession();
-
-		int numCommits = 0;
-
-		Transaction tx = null;
-		List<Revision> revisions = new ArrayList<>();
-		try {
-			tx = session.beginTransaction();
-
-			RevisionDao revDao = new RevisionDao(session);
-
-			// process every commit
-			for (CommitBean commit : commits) {
-				numCommits++;
-
-				Revision revision = revDao.getRevision(commit.getCommitId(), system);
-				boolean persist = false;
-				if (revision == null) {
-					revision = new Revision();
-					persist = true;
-				}
-
-				revision.setSoftwareSystem(system);
-				revision.setCommitId(commit.getCommitId());
-				revision.setMessage(commit.getCommitMessage());
-				revision.setAuthor(commit.getAuthorEmail());
-				revision.setDate(commit.getDate());
-
-				if (persist) {
-					revDao.persist(revision);
-				} else {
-					revDao.update(revision);
-				}
-				revisions.add(revision);
-
-				if (numCommits % 100 == 0) {
-					LOGGER.debug("[" + projectName + "]: " + numCommits + "/" + commits.size());
-				}
-			}
-			LOGGER.debug("[" + projectName + "]: " + numCommits + "/" + commits.size());
-
-			tx.commit();
-		} catch (Exception e) {
-			if (tx != null) {
-				tx.rollback();
-			}
-			throw e;
-		} finally {
-			session.close();
-		}
-
+		List<Revision> revisions = paginateCommits(commits);
 		LOGGER.debug("Commits stored [" + projectName + "]");
 
-		numCommits = 0;
+		int numCommits = 0;
 
 		// add the code files of each revision
 		for (int i = 0; i < commits.size(); i++) {
@@ -283,34 +236,38 @@ public class RevisionProcessor implements ThreadProcessor {
 		return ext;
 	}
 
-	// private void paginateCommits(Vector<CommitBean> commits) throws
-	// InterruptedException {
-	// ThreadCommandExecutor executor = new ThreadCommandExecutor();
-	// try {
-	// executor.setCorePoolSize(1);
-	//
-	// // create the threads
-	// List<ThreadProcessor> procs = new ArrayList<>();
-	// int num = commits.size();
-	// int pageSize = 50;
-	// for (int offset = 0; offset < num; offset += pageSize) {
-	// procs.add(new PaginatedRevisionProcessor(offset, offset + pageSize,
-	// commits, system));
-	// }
-	//
-	// // run the threads
-	// CountDownLatch cntDwnLatch = new CountDownLatch(procs.size());
-	// for (ThreadProcessor proc : procs) {
-	// executor.exeucuteCommRunnable(new CommandLatchRunnable(proc,
-	// cntDwnLatch));
-	//
-	// }
-	// cntDwnLatch.await();
-	//
-	// } finally {
-	// executor.shutdown();
-	// }
-	// }
+	private List<Revision> paginateCommits(Vector<CommitBean> commits) throws InterruptedException {
+		ThreadCommandExecutor executor = new ThreadCommandExecutor();
+		executor.setCorePoolSize(5);
+		try {
+
+			// create the threads
+			List<PaginatedRevisionProcessor> procs = new ArrayList<>();
+			int num = commits.size();
+			int pageSize = 50;
+			for (int offset = 0; offset < num; offset += pageSize) {
+				procs.add(new PaginatedRevisionProcessor(offset, offset + pageSize, commits, system));
+			}
+
+			// run the threads
+			CountDownLatch cntDwnLatch = new CountDownLatch(procs.size());
+			for (ThreadProcessor proc : procs) {
+				executor.exeucuteCommRunnable(new CommandLatchRunnable(proc, cntDwnLatch));
+			}
+			cntDwnLatch.await();
+
+			List<Revision> revisions = new ArrayList<>();
+			// list of revisions
+			for (PaginatedRevisionProcessor proc : procs) {
+				revisions.addAll(proc.getRevisions());
+			}
+
+			return revisions;
+
+		} finally {
+			executor.shutdown();
+		}
+	}
 
 	private SoftwareSystem getSystem() {
 		Session session = GenericDao.openSession();
