@@ -70,7 +70,7 @@ public class BugRevisionProcessor implements ThreadProcessor {
 			// run the threads
 			CountDownLatch cntDwnLatch = new CountDownLatch(procs.size());
 			for (ThreadProcessor proc : procs) {
-				executor.exeucuteCommRunnable(new CommandLatchRunnable(proc, cntDwnLatch));
+				executor.executeCommRunnable(new CommandLatchRunnable(proc, cntDwnLatch));
 
 			}
 

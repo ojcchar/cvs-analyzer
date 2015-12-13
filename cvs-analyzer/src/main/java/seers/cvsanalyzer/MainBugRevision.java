@@ -33,7 +33,7 @@ public class MainBugRevision {
 				// run the threads
 				CountDownLatch cntDwnLatch = new CountDownLatch(procs.size());
 				for (BugRevisionProcessor proc : procs) {
-					executor.exeucuteCommRunnable(new CommandLatchRunnable(proc, cntDwnLatch));
+					executor.executeCommRunnable(new CommandLatchRunnable(proc, cntDwnLatch));
 				}
 				cntDwnLatch.await();
 			} finally {
