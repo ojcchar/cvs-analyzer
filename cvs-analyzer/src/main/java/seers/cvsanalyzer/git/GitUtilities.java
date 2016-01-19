@@ -112,17 +112,9 @@ public class GitUtilities {
 		// [START] Make the file executable (i.e., adds execution
 		// permissions to the created file)
 		String tag = tagName == null ? "HEAD" : tagName;
-		// String arguments = " --git-dir \"" + repositoryPath + File.separator
-		// + ".git\""
-		// + " log --first-parent --name-status --date=iso --stat HEAD
-		// --pretty=format:\"<commit-id>%h</commit-id>"
-		// + "<author-email>%ae</author-email><author-date>%ad</author-date>"
-		// +
-		// "<committer-email>%ce</committer-email><committer-date>%cd</committer-date>"
-		// + "<message>%s</message>\" " + tag;
-		// String cmd = GIT_COMMAND + arguments;
 		String arguments = " " + "--git-dir" + " \"" + repositoryPath + File.separator + ".git\"" + " " + "log" + " "
-				+ "--first-parent" + " -" + "-name-status" + " " + "--date=iso" + " " + "--stat" + " " + "HEAD" + " "
+		// + "--first-parent"
+				+ " --name-status" + " " + "--date=iso" + " " + "--stat" + " " + "HEAD" + " "
 				+ "--pretty=format:\"<commit-id>%h</commit-id><author-email>%ae</author-email><author-date>%ad</author-date><committer-email>%ce</committer-email><committer-date>%cd</committer-date><message>%s</message>\""
 				+ " " + tag;
 		String cmd = GIT_COMMAND + arguments;
@@ -134,7 +126,9 @@ public class GitUtilities {
 		// ----
 		ProcessBuilder builder = new ProcessBuilder(GIT_COMMAND,
 				// "--git-dir", repositoryPath + File.separator + ".git",
-				"log", "--first-parent", "--name-status", "--date=iso", "--stat", "HEAD",
+				"log",
+				// "--first-parent",
+				"--name-status", "--date=iso", "--stat", "HEAD",
 				"--pretty=format:\"<commit-id>%h</commit-id><author-email>%ae</author-email><author-date>%ad</author-date><committer-email>%ce</committer-email><committer-date>%cd</committer-date><message>%s</message>\"",
 				tag);
 		LOGGER.debug(builder.command().toString());
